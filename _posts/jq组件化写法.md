@@ -1,0 +1,164 @@
+## 对js的插件进行封装的过程 ##
+### 一、基本写法 ###
+#### 例子是在一个input框输入数字，进行统计输入的字数 ####
+- 页面结构
+
+
+		<div class="demo01">
+	        <input type="text" class="txt-input"/>
+	    </div>
+- js代码
+	+ 出现的问题是
+		+ 变量直接暴露在全局中，没有很好的隔离作用域，难维护
+
+		
+		
+					<script src="../js/jquery-1.8.3.min.js"></script>
+			    	<script>
+			        /*
+			        *   各种变量混乱，没有很好的隔离作用域,当页面变的复杂的时候,会很难去维护
+			        * */
+			        $(function() {
+			            var txtInput = $(".txt-input");
+			            /*
+			            * 获取输入数值的长度
+			            * */
+			            function getNum() {
+			                return txtInput.val().length;
+			            }
+			            /*
+			            * 渲染数据
+			            * */
+			            function render() {
+			                var num = getNum();
+			                //如果没有显示数值的容器就新建一个
+			                if($(".show-num").length==0) {
+			                    txtInput.after(' <span class="show-num"></span>');
+			                }else {
+			                    $(".show-num").html(num+"个字");
+			                }
+			            }
+			
+			            /*
+			            * 监听keyup
+			            * */
+			            txtInput.on("keyup",function() {
+			                render();
+			            })
+			            // 初始化数据
+			            render();
+			        })
+			    </script>
+
+### 二、使用单个变量模拟命名空间 ###
+- 页面结构
+
+
+		<div>
+	        <input type="text" id="txtInput"/>
+	    </div>
+- js代码
+	-  这种写法没有私有的概念，比如上面的getNum,bind应该都是私有的方法。
+	-  但是其他代码可以很随意的改动这些。当代码量特别特别多的时候，很容易出现变量重复，或被修改的问题
+
+- 代码
+
+		<script src="../../js/jquery-1.8.3.min.js"></script>
+    	<script>
+        /*
+        * 使用单个变量模拟命名空间
+        * 缺点：
+        *   这种写法没有私有的概念，比如上面的getNum,bind应该都是私有的方法。
+        *   但是其他代码可以很随意的改动这些。当代码量特别特别多的时候，很容易出现变量重复，或被修改的问题
+        * */
+        var txtCount = {
+            txtInput : null,
+            init: function(config) {
+                this.txtInput = $(config.id);
+                this.bind();
+                return this;
+            },
+            bind: function() {
+                var self = this;
+                this.txtInput.on("keyup",function() {
+                    //alert(1);  绑定事件成功执行
+                    self.render();
+                })
+            },
+            getNum: function() {
+                return this.txtInput.val().length;
+            },
+            render: function() {
+                var num = this.getNum();
+                if($(".show-num").length==0) {
+                    var span = '<span class="show-num">'+num+'个数</span>';
+                    this.txtInput.after(span);
+                }else {
+                    $(".show-num").html(num+'个数');
+                }
+            }
+        }
+        $(function() {
+            txtCount.init({"id":"#txtInput"}).render();
+        })
+    </script>
+
+### 三、闭包写法 ###
+- 页面结构
+
+		<div>
+	        <input type="text" id="txtInput"/>
+	    </div>
+- 解释
+	+ 这种写法，把所有的东西都包在了一个自动执行的闭包里面，所以不会受到外面的影响
+	+ 且只对外公开了txtCountFun构造函数，生成的对象只能访问到init,render方法。
+	+ 这种写法已经满足绝大多数的需求了
+	+ 基本jQuery插件都是这种写法
+
+- js代码
+
+
+		<script src="../../js/jquery-1.8.3.min.js"></script>
+	    <script>
+	        /*
+	        * 这种写法，把所有的东西都包在了一个自动执行的闭包里面，所以不会受到外面的影响
+	        * 且只对外公开了txtCountFun构造函数，生成的对象只能访问到init,render方法。
+	        * 这种写法已经满足绝大多数的需求了
+	        * 基本jQuery插件都是这种写法
+	        * */
+	        var TxtCount = (function(){
+	            var txtCountFun = function(){}
+	            txtCountFun.prototype.init = function(config) {
+	                this.txtInput = $(config.id);
+	                _bind(this);
+	                return this;
+	            }
+	            txtCountFun.prototype.render = function() {
+	                var num = _getNum(this);
+	                if($(".show-num").length==0) {
+	                    var span = '<span class="show-num">'+num+'个数</span>';
+	                    this.txtInput.after(span);
+	                }else {
+	                    $(".show-num").html(num+'个数');
+	                }
+	            }
+	            // 私有成员函数
+	            var _bind = function(that) {
+	                that.txtInput.on("keyup",function() {
+	                   that.render();
+	                })
+	            }
+	            var _getNum = function(that) {
+	                return that.txtInput.val().length;
+	            }
+	            return txtCountFun;
+	        })();
+	
+	        $(function() {
+	            var txtCountF = new TxtCount();
+	            txtCountF.init({"id":"#txtInput"}).render();
+	        })
+	    </script>
+
+- 后面写js插件时往上面靠拢
+- 参考链接[https://github.com/purplebamboo/blog/issues/16](https://github.com/purplebamboo/blog/issues/16 "链接地址")
