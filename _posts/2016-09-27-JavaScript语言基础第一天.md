@@ -1,8 +1,8 @@
 ---
 layout: post
 title:  "js基础第一天"
-categories: javascript
-tags:  javascript语法
+categories: JavaScript
+tags:  JavaScript
 ---
 
 * content
